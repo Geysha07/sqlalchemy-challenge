@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, func
 
 from flask import Flask, jsonify
 
+import datetime as dt
 
 
 #################################################
@@ -17,7 +18,6 @@ engine = create_engine("sqlite:///hawaii.sqlite")
 
 # reflect an existing database into a new model
 Base = automap_base()
-
 # reflect the tables
 Base.prepare(autoload_with=engine)
 
@@ -40,55 +40,65 @@ app = Flask(__name__)
 #################################################
 @app.route("/")
 def welcome():
-    """List all available api routes."""
     return(
-        f"Welcome to Hawaii Weather Data API"
-        f"/api/v1.0/precipitation"
-        f"/api/v1.0/stations"
-        f"/api/v1.0/tobs"
-        f"/api/v1.0/<start>"
+    f"Welcome to the Hawaii Weather API! These are all the available routes.<br/>"
+    f"Returns one year of precipitation data: /api/v1.0/precipitation<br/>"
+    f"Returns list of weather stations: /api/v1.0/stations<br/>"
+    f"Returns dates and temperature observations from the previous year for the most active station: /api/v1.0/tobs<br/>"
+    f"Returns list of minimum, maximum and average temperatures for a specified start date: /api/v1.0/START DATE<br/>"
+    f"Returns list of minimum, maximum and average temperatures for a specified start-end date: /api/v1.0/START DATE/END DATE<br/>"
+    f"NOTE: For start date, please use YYYY-mm-dd format. For start end-date, please use YYYY-mm-dd/YYYY-mm-dd format."
     )
-
 @app.route("/api/v1.0/precipitation")
 def precipitation():
-
+    
     session = Session(engine)
     
-    precipitation_results = session.query(measurement.prcp, measurement.date).all()
-    
+    one_year_prior = dt.date(2017, 8, 23) - dt.timedelta(days=365)
+    results = session.query(measurement.date, measurement.prcp)\
+    .filter(measurement.date >one_year_prior)\
+    .order_by(measurement.date).all()
+
     session.close()
 
-    precipitation_data = []
-    for prcp, date in precipitation_results:
-        precipitation_dict = []
-        precipitation_dict ["precipitation"] = prcp
-        precipitation_dict ["date"] = date
+    precipitation_data =[]
+    for date, prcp in results:
+        precipitation_dict = {}
+        precipitation_dict["date"] = date
+        precipitation_dict["precipitation"] = prcp
         precipitation_data.append(precipitation_dict)
     return jsonify(precipitation_data)
 
-
 @app.route("/api/v1.0/stations")
-def station():
+def stations():
     
     session = Session(engine)
-    station_results = session.query(station.station).all()
+    station_data = session.query(station.station).all()
 
     session.close()
 
-    station_list = []
-    for station in station_results:
-        stations_list_dict = []
-        stations_list_dict['station'] = station
-        station_list.append(stations_list_dict)
+    station_list = list(np.ravel(station_data))
     return jsonify(station_list)
 
 @app.route("/api/v1.0/tobs")
+def tobs():
 
+    session = Session(engine)
 
+    tobs_most_active = session.query(measurement.station, measurement.date, measurement.tobs)\
+    .filter(measurement.station == 'USC00519281').filter(measurement.date > '2016-08-17' ).all()
 
-@app.route("/api/v1.0/<start>")
+    session.close()
 
+    tobs_list = []
+    for station, date, tobs in tobs_most_active:
+        tobs_dict = {}
+        tobs_dict["station"] = station
+        tobs_dict["date"] = date
+        tobs_dict["tobs"] = tobs
+        tobs_list.append(tobs_dict)
+    return jsonify(tobs_list)
 
-
-
-@app.route("/api/v1.0/<start>/<end>")
+if __name__ == '__main__':
+    app.run(debug=True)
+    
