@@ -45,10 +45,11 @@ def welcome():
     f"Returns one year of precipitation data: /api/v1.0/precipitation<br/>"
     f"Returns list of weather stations: /api/v1.0/stations<br/>"
     f"Returns dates and temperature observations from the previous year for the most active station: /api/v1.0/tobs<br/>"
-    f"Returns list of minimum, maximum and average temperatures for a specified start date: /api/v1.0/START DATE<br/>"
-    f"Returns list of minimum, maximum and average temperatures for a specified start-end date: /api/v1.0/START DATE/END DATE<br/>"
-    f"NOTE: For start date, please use YYYY-mm-dd format. For start end-date, please use YYYY-mm-dd/YYYY-mm-dd format."
+    f"Returns list of minimum, maximum and average temperatures for a specified start date: /api/v1.0/START<br/>"
+    f"Returns list of minimum, maximum and average temperatures for a specified start-end date: /api/v1.0/START/END<br/>"
+    f"NOTE: For start date, please use YYYY-mm-dd format. For start/end date, please use YYYY-mm-dd/YYYY-mm-dd format."
     )
+
 @app.route("/api/v1.0/precipitation")
 def precipitation():
     
@@ -98,6 +99,44 @@ def tobs():
         tobs_dict["tobs"] = tobs
         tobs_list.append(tobs_dict)
     return jsonify(tobs_list)
+
+@app.route("/api/v1.0/<start>")
+def start_date(start):
+
+    session = Session(engine)
+
+    start_tobs = session.query(func.min(measurement.tobs), func.avg(measurement.tobs),\
+    func.max(measurement.tobs)).filter(measurement.date >= start).all()
+
+    session.close()
+
+    start_tobs_list = []
+    for min, avg, max in start_tobs:
+        start_tobs_dict = {}
+        start_tobs_dict ["min"] = min
+        start_tobs_dict ["average"] = avg
+        start_tobs_dict ["max"] = max
+        start_tobs_list.append(start_tobs_dict)
+    return jsonify (start_tobs_list)
+
+@app.route("/api/v1.0/<start>/<end>")
+def start_end_date(start,end):
+
+    session = Session(engine)
+
+    start_end_tobs = session.query(func.min(measurement.tobs), func.avg(measurement.tobs),\
+    func.max(measurement.tobs)).filter(measurement.date >= start).filter(measurement.date <= end).all()
+
+    session.close()
+
+    start_end_tobs_list = []
+    for min, avg, max in start_end_tobs:
+        start_end_tobs_dict = {}
+        start_end_tobs_dict ["min"] = min
+        start_end_tobs_dict ["average"] = avg
+        start_end_tobs_dict ["max"] = max
+        start_end_tobs_list.append(start_end_tobs_dict)
+    return jsonify (start_end_tobs_list)
 
 if __name__ == '__main__':
     app.run(debug=True)
